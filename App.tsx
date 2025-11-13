@@ -60,26 +60,30 @@ const App: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [tasksRes, employeesRes, blockersRes, activitiesRes] = await Promise.all([
+      const responses = await Promise.all([
         fetch('/api/tasks'),
         fetch('/api/employees'),
         fetch('/api/blockers'),
         fetch('/api/activities')
       ]);
 
-      if (!tasksRes.ok || !employeesRes.ok || !blockersRes.ok || !activitiesRes.ok) {
-        throw new Error('Network response was not ok');
+      for (const res of responses) {
+        if (!res.ok) {
+          const errorBody = await res.json().catch(() => ({ message: `API request failed with status ${res.status}` }));
+          throw new Error(errorBody.message || 'An unknown network error occurred.');
+        }
       }
 
-      setTasks(await tasksRes.json());
-      setEmployees(await employeesRes.json());
-      setBlockers(await blockersRes.json());
-      setActivities(await activitiesRes.json());
+      const [tasks, employees, blockers, activities] = await Promise.all(responses.map(res => res.json()));
+
+      setTasks(tasks);
+      setEmployees(employees);
+      setBlockers(blockers);
+      setActivities(activities);
       setIsDbLive(true);
-      // addNotification("Successfully connected to the database.", 'success');
     } catch (error) {
       console.error("Failed to fetch data:", error);
-      loadMockData();
+      loadMockData(); // This function already shows a notification
     } finally {
       setIsLoading(false);
     }

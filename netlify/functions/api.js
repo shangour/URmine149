@@ -97,6 +97,15 @@ app.use(express.json({ limit: '10mb' }));
 // --- API Routes ---
 const router = express.Router();
 
+// Middleware to check for required environment variables
+router.use((req, res, next) => {
+    if (!mongoURI) {
+        console.error('MONGO_URI is not set.');
+        return res.status(500).json({ message: 'Database connection string is not configured on the server. Please check environment variables.' });
+    }
+    next();
+});
+
 // GET all data
 router.get('/tasks', async (req, res) => {
   try {
@@ -330,19 +339,15 @@ router.post('/generate-briefing', async (req, res) => {
             Please structure your response in the following sections:
 
             ### 🚨 Top Priorities
-
             Highlight 1-3 tasks that require immediate attention. Focus on tasks that are blocked, nearing their due date, or significantly behind schedule. For each task, mention the owner and the reason for its priority.
 
             ### 👥 Team Pulse
-
             Provide a brief overview of the team's status. Mention employees who are making good progress and identify anyone who might be struggling or has been idle (no recent updates).
 
             ### 📈 Potential Risks
-
             Analyze the data to identify any potential future problems. For example, a series of small delays on a critical path, or an employee with a history of blockers taking on a complex task.
 
             ### ✅ Actionable Suggestions
-
             Give the manager 2-3 concrete, actionable steps they should take today. For example: 'Follow up with [Employee Name] about the invalid API key for task [Task Code]' or 'Consider re-allocating [Employee Name] to help with [Task Code] to meet the deadline.'
 
             Keep the entire briefing under 250 words and do not include the JSON data in your response.
@@ -361,10 +366,9 @@ router.post('/generate-briefing', async (req, res) => {
     }
 });
 
+// This path is conventional for Netlify rewrites.
+// A rewrite rule `from = "/api/*" to = "/.netlify/functions/api/:splat"` means the
+// function will receive the request, and this router handles the sub-path.
+app.use('/.netlify/functions/api', router);
 
-// The '/api' prefix is preserved when proxied.
-// So, we mount our router at '/api' to match the incoming requests.
-app.use('/api', router); 
-
-// This line makes the server work on Netlify
 export const handler = serverless(app);

@@ -96,6 +96,15 @@ app.use(express.json({ limit: '10mb' }));
 // --- API Routes ---
 const router = express.Router();
 
+// Middleware to check for required environment variables
+router.use((req, res, next) => {
+    if (!mongoURI) {
+        console.error('MONGO_URI is not set.');
+        return res.status(500).json({ message: 'Database connection string is not configured on the server. Please check environment variables.' });
+    }
+    next();
+});
+
 // GET all data
 router.get('/tasks', async (req, res) => {
   try {
