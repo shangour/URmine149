@@ -107,12 +107,15 @@ app.use(express.json({ limit: '10mb' }));
 // --- API Routes ---
 const router = express.Router();
 
-// Middleware to check for required environment variables
+// Middleware to check for required environment variables and add debug logging
 router.use((req, res, next) => {
     if (!mongoURI) {
-        console.error('MONGO_URI is not set.');
+        console.error('SERVER ERROR: The MONGO_URI environment variable is not set. The database cannot be reached. Please configure this in your Vercel project settings.');
         return res.status(500).json({ message: 'Database connection string is not configured on the server. Please check environment variables.' });
     }
+    // Log a censored version for debugging, helping users verify their config without exposing secrets.
+    const censoredURI = mongoURI.replace(/:([^:]+)@/, ':<password_hidden>@');
+    console.log(`Attempting to connect to database: ${censoredURI}`);
     next();
 });
 

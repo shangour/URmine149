@@ -83,7 +83,7 @@ const App: React.FC = () => {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       console.error("Failed to fetch data:", errorMessage);
-      addNotification(`Data fetch failed: ${errorMessage}. Loading local sample data instead.`, 'error');
+      addNotification(`Could not connect to the database. Check Vercel function logs for details. Loaded sample data.`, 'warning');
       loadFallbackData();
     } finally {
       setIsLoading(false);
