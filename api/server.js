@@ -104,6 +104,14 @@ app.use(cors());
 // Increase payload limit for file uploads and AI context
 app.use(express.json({ limit: '10mb' })); 
 
+// --- NEW --- Top-level logger to capture ALL incoming requests
+// This will help us see the exact path Vercel sends to the function.
+app.use((req, res, next) => {
+    console.log(`[Vercel Function Log] Received request: ${req.method} ${req.originalUrl}`);
+    next();
+});
+
+
 // --- API Routes ---
 const router = express.Router();
 

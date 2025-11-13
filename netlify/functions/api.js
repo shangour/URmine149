@@ -105,6 +105,14 @@ app.use(cors());
 // Increase payload limit for file uploads and AI context
 app.use(express.json({ limit: '10mb' })); 
 
+// --- NEW --- Top-level logger to capture ALL incoming requests
+// This will help us see the exact path Netlify sends to the function.
+app.use((req, res, next) => {
+    // In Netlify, the path is usually available in req.path
+    console.log(`[Netlify Function Log] Received request: ${req.method} ${req.path}`);
+    next();
+});
+
 // --- API Routes ---
 const router = express.Router();
 
