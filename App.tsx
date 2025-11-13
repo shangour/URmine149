@@ -47,15 +47,14 @@ const App: React.FC = () => {
     }, 5000);
   }, []);
 
-  const loadMockData = useCallback(() => {
+  const loadFallbackData = useCallback(() => {
     setTasks(MOCK_TASKS);
     setEmployees(MOCK_EMPLOYEES);
     setBlockers(MOCK_BLOCKERS);
     setActivities(MOCK_ACTIVITIES);
     setIsLoading(false);
     setIsDbLive(false);
-    addNotification("Could not connect to the database. Loaded local sample data.", 'warning');
-  }, [addNotification]);
+  }, []);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -82,12 +81,14 @@ const App: React.FC = () => {
       setActivities(activities);
       setIsDbLive(true);
     } catch (error) {
-      console.error("Failed to fetch data:", error);
-      loadMockData(); // This function already shows a notification
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      console.error("Failed to fetch data:", errorMessage);
+      addNotification(`Data fetch failed: ${errorMessage}. Loading local sample data instead.`, 'error');
+      loadFallbackData();
     } finally {
       setIsLoading(false);
     }
-  }, [loadMockData]);
+  }, [addNotification, loadFallbackData]);
 
   useEffect(() => {
     if (user) {

@@ -17,16 +17,27 @@ let conn = null;
 const connectDatabase = async () => {
   if (conn == null) {
     console.log('Creating new connection to the database...');
-    conn = mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000 // Keep connection alive for 5 seconds
-    }).then(() => mongoose);
-    // `await` the connection to handle initial connection errors
-    await conn;
+    try {
+      conn = mongoose.connect(mongoURI, {
+        serverSelectionTimeoutMS: 5000,
+        bufferCommands: false, // Fail fast if not connected
+      }).then(() => mongoose);
+      
+      await conn;
+      console.log('Database connection successful.');
+    } catch (error) {
+      console.error("!!! DATABASE CONNECTION ERROR !!!");
+      console.error("This is likely due to an incorrect MONGO_URI environment variable or your server's IP not being whitelisted in MongoDB Atlas.");
+      console.error("Original Error:", error);
+      conn = null; // Reset connection
+      throw error; // Propagate the error to the route handler
+    }
   } else {
     console.log('Reusing existing database connection.');
   }
   return conn;
 };
+
 
 // --- Mongoose Schemas and Models ---
 // To avoid "OverwriteModelError" in a serverless environment, we check if the model exists before creating it.
@@ -105,6 +116,14 @@ router.use((req, res, next) => {
     next();
 });
 
+const handleDbError = (err, res) => {
+    const isConnectionError = err.message.includes('connect') || err.message.includes('timeout') || err instanceof mongoose.Error.MongooseServerSelectionError;
+    if (isConnectionError) {
+        return res.status(500).json({ message: 'Database connection failed. Please check server logs and MongoDB Atlas IP Whitelist.' });
+    }
+    return res.status(500).json({ message: 'An internal server error occurred: ' + err.message });
+};
+
 // GET all data
 router.get('/tasks', async (req, res) => {
   try {
@@ -112,7 +131,7 @@ router.get('/tasks', async (req, res) => {
     const tasks = await Task.find().sort({ startTime: -1 }); // Sort by most recent
     res.json(tasks);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch tasks: ' + err.message });
+    handleDbError(err, res);
   }
 });
 
@@ -122,7 +141,7 @@ router.get('/employees', async (req, res) => {
     const employees = await Employee.find();
     res.json(employees);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch employees: ' + err.message });
+    handleDbError(err, res);
   }
 });
 
@@ -132,7 +151,7 @@ router.get('/blockers', async (req, res) => {
         const blockers = await Blocker.find().sort({ reportedAt: -1 });
         res.json(blockers);
     } catch (err) {
-        res.status(500).json({ message: 'Failed to fetch blockers: ' + err.message });
+        handleDbError(err, res);
     }
 });
 
@@ -142,7 +161,7 @@ router.get('/activities', async (req, res) => {
         const activities = await Activity.find().sort({ timestamp: -1 });
         res.json(activities);
     } catch (err) {
-        res.status(500).json({ message: 'Failed to fetch activities: ' + err.message });
+        handleDbError(err, res);
     }
 });
 
@@ -157,7 +176,10 @@ router.post('/tasks', async (req, res) => {
     const newTask = await task.save();
     res.status(201).json(newTask);
   } catch (err) {
-    res.status(400).json({ message: 'Failed to create task: ' + err.message });
+    if (err instanceof mongoose.Error.ValidationError) {
+        return res.status(400).json({ message: 'Failed to create task: ' + err.message });
+    }
+    handleDbError(err, res);
   }
 });
 
@@ -203,7 +225,7 @@ router.post('/tasks/:id/status-update', async (req, res) => {
         res.status(200).json({ message: 'Update successful' });
 
     } catch (err) {
-        res.status(500).json({ message: 'Failed to process status update: ' + err.message });
+        handleDbError(err, res);
     }
 });
 
@@ -252,7 +274,7 @@ router.post('/tasks/:id/blocker-report', async (req, res) => {
         res.status(200).json({ message: 'Blocker reported successfully' });
 
     } catch (err) {
-        res.status(500).json({ message: 'Failed to report blocker: ' + err.message });
+        handleDbError(err, res);
     }
 });
 
@@ -284,7 +306,7 @@ router.post('/tasks/:id/submit', async (req, res) => {
         res.status(200).json({ message: 'Task submitted successfully' });
 
     } catch (err) {
-        res.status(500).json({ message: 'Failed to submit task: ' + err.message });
+        handleDbError(err, res);
     }
 });
 
@@ -308,7 +330,7 @@ router.post('/seed', async (req, res) => {
     
     res.status(201).send('Database seeded successfully');
   } catch (err) {
-    res.status(500).json({ message: 'Failed to seed database: ' + err.message });
+    handleDbError(err, res);
   }
 });
 
@@ -370,9 +392,10 @@ router.post('/generate-briefing', async (req, res) => {
 });
 
 
-// On Vercel, the file-based routing handles the '/api' prefix.
-// The request is forwarded to this function, so we mount the router at the root.
-app.use('/', router); 
+// On Vercel, the rewrite rule in vercel.json handles the /api prefix.
+// The function itself receives the path *without* the prefix (e.g., /tasks).
+// Therefore, we mount the router at the root of the app.
+app.use('/api', router); 
 
 // This line makes the server work on Vercel
 export default app;
