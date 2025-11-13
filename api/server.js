@@ -393,9 +393,9 @@ router.post('/generate-briefing', async (req, res) => {
 
 
 // On Vercel, the rewrite rule in vercel.json handles the /api prefix.
-// The function itself receives the path *without* the prefix (e.g., /tasks).
-// Therefore, we mount the router at the root of the app.
-app.use('/api', router); 
+// The function itself receives the path *without* the prefix (e.g., a request to /api/tasks becomes /tasks).
+// Therefore, we mount the router at the root of the app to handle these requests.
+app.use('/', router); 
 
 // This line makes the server work on Vercel
 export default app;

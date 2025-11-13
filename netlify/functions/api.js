@@ -392,9 +392,9 @@ router.post('/generate-briefing', async (req, res) => {
     }
 });
 
-// For Netlify, the function is accessed via a path like `/.netlify/functions/api`.
-// The rewrite rule directs `/api/*` to this function. We need to handle the `/api` prefix.
-const finalApp = express();
-finalApp.use('/api', router);
+// For Netlify, a rewrite rule directs `/api/*` to this function's endpoint.
+// The path received by the function does not include the `/api` prefix (e.g., /api/tasks becomes /tasks).
+// Therefore, we mount the router at the root (`/`) to handle these paths correctly.
+app.use('/', router);
 
-export const handler = serverless(finalApp);
+export const handler = serverless(app);
